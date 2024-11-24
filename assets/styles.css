@@ -1,0 +1,214 @@
+/* Import Circular Std Medium font */
+@font-face {
+    font-family: 'CircularStdMedium';
+    src: url('/assets/circular-std-medium-500.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* Set default styles for the entire app */
+body {
+    background-color: black;
+    color: white;
+    font-family: 'CircularStdMedium', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* Navbar styling */
+.navbar {
+    background-color: black;
+    color: white;
+}
+
+/* Container and row styling */
+.container, .row, .col {
+    color: white;
+}
+
+/* Dropdown container styling with Spotify theme */
+.custom-dropdown {
+    background-color: #1DB954; /* Spotify green background */
+    color: white; /* White text */
+    font-family: 'CircularStdMedium', sans-serif;
+    border-radius: 25px;
+    /*padding: 10px;*/ /* Remove padding */
+    box-shadow: none;
+    outline: none;
+    transition: box-shadow 0.3s ease;
+}
+
+/* Dropdown focus effect */
+.custom-dropdown:focus-within {
+    box-shadow: 0 0 5px #14833b;
+}
+
+/* Input field styling within dropdown */
+.custom-dropdown .Select-control,
+.custom-dropdown .Select--single > .Select-control,
+.custom-dropdown .Select-placeholder,
+.custom-dropdown .Select--single > .Select-control .Select-value {
+    background-color: #1DB954; /* Keep green background */
+    color: white; /* White text */
+    border: none; /* Remove border */
+    font-family: 'CircularStdMedium', sans-serif;
+    padding: 8px;
+    border-radius: 25px;
+}
+
+/* Dropdown options menu styling */
+.custom-dropdown .Select-menu-outer,
+.custom-dropdown .dropdown-menu {
+    background-color: #1DB954;
+    color: white;
+    border-radius: 10px;
+    max-height: 2000px; /* Control dropdown height */
+    overflow-y: auto; /* Enable scroll only if options exceed height */
+}
+
+/* Remove any extra scroll on dropdown */
+.custom-dropdown .dropdown,
+.custom-dropdown .Select-control {
+    overflow: hidden;
+}
+
+/* Dropdown options hover effect */
+.custom-dropdown .Select-option:hover,
+.custom-dropdown .dropdown-item:hover {
+    background-color: #14833b; /* Darker green */
+    color: white;
+}
+
+/* Selected option text color */
+.custom-dropdown .Select--single > .Select-control .Select-value,
+.custom-dropdown .Select-placeholder {
+    color: white; /* Ensure white text for selected option */
+}
+
+/* Button styling */
+button, .btn, .Button, .button {
+    background-color: #1DB954;
+    color: white;
+    font-family: 'CircularStdMedium', sans-serif;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Button hover effect */
+button:hover, .btn:hover, .Button:hover, .button:hover {
+    background-color: #14833b;
+}
+
+/* DataTable styling */
+.data-table, .dash-table-container {
+    background-color: black;
+    color: white;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet {
+    border: 1px solid gray;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet tr th {
+    background-color: black;
+    color: white;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet tr td {
+    background-color: black;
+    color: white;
+}
+
+/* Custom slider styling */
+.custom-slider .rc-slider {
+    width: 100%;
+    margin: 20px 0;
+}
+
+.custom-slider .rc-slider-rail {
+    height: 8px;
+    background-color: #333; /* Dark background for the slider track */
+}
+
+.custom-slider .rc-slider-track {
+    height: 8px;
+    background-color: #1DB954; /* Spotify green for the selected range */
+}
+
+.custom-slider .rc-slider-handle {
+    width: 20px;
+    height: 20px;
+    border: solid 3px #1DB954; /* Spotify green border around handle */
+    background-color: white; /* White handle */
+    box-shadow: none; /* Remove shadow */
+    cursor: pointer;
+}
+
+/* Change the color of the outline (blue) on focus/active */
+.custom-slider .rc-slider-handle:focus,
+.custom-slider .rc-slider-handle:hover,
+.custom-slider .rc-slider-handle:active {
+    border-color: #1DB954; /* Spotify green border */
+    box-shadow: 0 0 5px #1DB954; /* Green glow effect */
+    outline: none; /* Remove default blue outline */
+}
+
+/* Center the tick marks on the slider track */
+.custom-slider .rc-slider-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #1DB954;
+    border-radius: 50%;
+    top: -0.51px; /* Adjust to center dots with the track */
+}
+
+/* Handle hover/focus effect */
+.custom-slider .rc-slider-handle:hover,
+.custom-slider .rc-slider-handle:focus {
+    border-color: #14833b; /* Darker green on hover/focus */
+}
+
+/* Hide slider marks (year numbers) */
+.custom-slider .rc-slider-mark-text {
+    display: none; /* Hide the tick labels */
+}
+
+/* Tooltip styling */
+.custom-slider .rc-slider-tooltip-inner {
+    background-color: #1DB954; /* Tooltip background */
+    color: white; /* Tooltip text color */
+    font-family: 'CircularStdMedium', sans-serif;
+}
+
+.custom-slider .rc-slider-tooltip-arrow {
+    border-top-color: #1DB954; /* Tooltip arrow color */
+}
+
+
+
+
+/* Label and heading colors */
+label, h1, h2, h3, h4, h5, h6, p {
+    color: #1DB954;
+}
+
+/* Custom input styling */
+.custom-input {
+    background-color: #1DB954; /* Spotify green background */
+    color: black; /* Black text */
+    font-family: 'CircularStdMedium', sans-serif;
+    border: none; /* Remove border */
+    border-radius: 25px; /* Match button border-radius */
+    padding: 10px 20px; /* Match button padding */
+    box-shadow: none;
+    outline: none;
+    transition: box-shadow 0.3s ease;
+}
+
+/* Input focus effect */
+.custom-input:focus {
+    box-shadow: 0 0 5px #14833b; /* Darker green glow effect */
+}
