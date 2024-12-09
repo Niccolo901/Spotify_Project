@@ -162,7 +162,7 @@ button:hover, .btn:hover, .Button:hover, .button:hover {
     height: 8px;
     background-color: #1DB954;
     border-radius: 50%;
-    top: -0.51px; /* Adjust to center dots with the track */
+    top: 0px; /* Adjust to center dots with the track */
 }
 
 /* Handle hover/focus effect */
@@ -171,9 +171,14 @@ button:hover, .btn:hover, .Button:hover, .button:hover {
     border-color: #14833b; /* Darker green on hover/focus */
 }
 
-/* Hide slider marks (year numbers) */
+/* Show slider marks (year numbers) */
 .custom-slider .rc-slider-mark-text {
-    display: none; /* Hide the tick labels */
+    display: block; /* Ensure tick labels are displayed */
+    color: white; /* White text for tick labels */
+    font-size: 12px; /* Adjust font size */
+    font-family: 'CircularStdMedium', sans-serif;
+    margin-top: 10px; /* Space the labels below the slider */
+    text-align: center; /* Center-align the tick labels */
 }
 
 /* Tooltip styling */

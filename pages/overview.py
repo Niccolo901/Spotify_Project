@@ -162,6 +162,29 @@ layout = dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
+                    html.Div([
+                        html.Label("Select Year Range for Line Chart:",
+                                   style={"color": "#1DB954", "font-size": "16px"}),
+                        dcc.RangeSlider(
+                            id="line-chart-year-slider",
+                            min=min(available_years),
+                            max=max(available_years),
+                            value=[min(available_years), max(available_years)],
+                            marks={str(year): str(year) for year in available_years if year % 5 == 0}, # Show every 5 years
+                            step=1,  # Allow step-by-step movement
+                            tooltip={"placement": "bottom", "always_visible": True},  # Show tooltip on slider
+                            className="custom-slider"
+                        )
+                    ], style={"padding": "10px"})
+                    , width=12)
+            ],
+            className="mb-2",
+            style={"backgroundColor": "black"}
+        ),
+
+        dbc.Row(
+            [
+                dbc.Col(
                     dcc.Graph(id="popularity-line-chart",
                               config={
                                   "displayModeBar": False  # Disables the toolbar
@@ -171,28 +194,6 @@ layout = dbc.Container(
                 )
             ]
         ),
-
-        dbc.Row(
-            [
-                dbc.Col(
-                    html.Div([
-                        html.Label("Select Year Range for Line Chart:", style={"color": "#1DB954"}),
-                        dcc.RangeSlider(
-                            id="line-chart-year-slider",
-                            min=min(available_years),
-                            max=max(available_years),
-                            value=[min(available_years), max(available_years)],
-                            marks={str(year): str(year) for year in available_years},
-                            step=None,
-                            className="custom-slider"
-                        )
-                    ]),
-                    width=12
-                )
-            ],
-            className="mb-4",
-            style={"backgroundColor": "black"}
-        )
     ],
     fluid=True
 

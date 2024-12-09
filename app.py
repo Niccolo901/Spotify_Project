@@ -18,7 +18,6 @@ app.layout = dbc.Container([
             dbc.NavItem(dbc.NavLink("Artist Analysis", href="/artist-analysis")),
             dbc.NavItem(dbc.NavLink("Track Analysis", href="/track-analysis")),
             dbc.NavItem(dbc.NavLink("Features Analysis", href="/features-analysis")),
-            #dbc.NavItem(dbc.NavLink("Playlist Analysis", href="/playlist-analysis")),
             ],
         brand="Spotify Dashboard",
         color="black",

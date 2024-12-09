@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import random
 import plotly.express as px
+import plotly
 '''
 add the radar charts for comparing features of the genres and features of specific tracks
 
@@ -14,8 +15,28 @@ add the radar charts for comparing features of the genres and features of specif
 
 # Load dataset
 df_tracks = pd.read_csv(r'C:\Users\cibei\OneDrive\Desktop\Data Visualization Methods\pythonProject\data\spotify_songs.csv')
+
+# Extract the release year from the release date
+df_tracks['release_year'] = pd.to_datetime(df_tracks['track_album_release_date'], errors='coerce').dt.year
+
 # Create a sample dataset for Popularity vs Duration scatterplot
 df_sample = df_tracks.sample(n=1000, random_state=42)
+
+# Define a color map for genres
+genre_colors = {
+    'pop': '#1DB954',
+    'rock': '#70D6FF',
+    'rap': '#FF9770',
+    'latin': '#FF70A6',
+    'edm': '#FFD670',
+    'r&b': '#FF0000'
+}
+
+# Assign colors to genres
+df_sample['color'] = df_sample['playlist_genre'].map(genre_colors)
+
+
+
 # Available features for the scatterplot
 scatter_features = [
     'duration_ms',       # Duration of the track in milliseconds
@@ -64,25 +85,6 @@ genre_distribution = (
     .agg({'track_name': 'count'})  # Count the number of songs
     .rename(columns={'track_name': 'num_songs'})  # Rename for clarity
     .sort_values(by='num_songs', ascending=False)  # Sort by number of songs
-)
-
-# Energy and Danceability line chart
-fig_energy_danceability = go.Figure()
-fig_energy_danceability.add_trace(go.Scatter(
-    x=energy_danceability['track_album_release_date'], y=energy_danceability['energy'], mode='lines+markers',
-    name='Energy', line=dict(color="#1DB954"), marker=dict(size=6)
-))
-fig_energy_danceability.add_trace(go.Scatter(
-    x=energy_danceability['track_album_release_date'], y=energy_danceability['danceability'], mode='lines+markers',
-    name='Danceability', line=dict(color="black"), marker=dict(size=6)
-))
-fig_energy_danceability.update_layout(
-    title="Energy and Danceability over the Years",
-    xaxis_title="Year",
-    yaxis_title="Value",
-    plot_bgcolor="black",
-    paper_bgcolor="black",
-    font=dict(color="white")
 )
 
 
@@ -138,11 +140,28 @@ fig_duration_density.update_layout(
     margin=dict(l=40, r=40, t=50, b=40)
 )
 
-# Create the bar chart
-fig_genre_bar_chart = go.Figure(go.Bar(
+# Create the bar chart with gradient colors
+fig_genre_bar_chart = go.Figure()
+
+# Define gradient colors
+color_start = plotly.colors.hex_to_rgb('#d3f9d8')  # Light green
+color_end = plotly.colors.hex_to_rgb('#1DB954')  # Spotify green
+min_value = genre_distribution['num_songs'].min()
+max_value = genre_distribution['num_songs'].max()
+colors = [
+    plotly.colors.find_intermediate_color(
+        color_start, color_end, (value - min_value) / (max_value - min_value)
+    ) for value in genre_distribution['num_songs']
+]
+colors_hex = [f"rgb({r},{g},{b})" for r, g, b in colors]
+
+# Add bars to the chart
+fig_genre_bar_chart.add_trace(go.Bar(
     x=genre_distribution['playlist_genre'],  # Genres on the x-axis
     y=genre_distribution['num_songs'],  # Number of songs on the y-axis
-    marker_color="#1DB954",  # Spotify green color
+    marker=dict(color=colors_hex),  # Gradient color
+    text=genre_distribution['num_songs'],  # Display values on the bars
+    textposition='auto'  # Position the text in the center of the bars
 ))
 
 # Customize the layout
@@ -173,6 +192,7 @@ fig_genre_bar_chart.update_layout(
 )
 
 # Define layout for Track Analysis page
+    # Filter the data based on the selected genre
 layout = dbc.Container(
     [
         dbc.Row(
@@ -284,13 +304,39 @@ layout = dbc.Container(
                                       "displayModeBar": False  # Disables the toolbar
                                   }
                 ),
-                width=6),
-                dbc.Col(dcc.Graph(figure=fig_genre_bar_chart,
-                                  config={
-                                      "displayModeBar": False  # Disables the toolbar
-                                  }
+                width=12),
+            ],
+            className="mb-4"
+        ),
+        dbc.Row(
+            [
+                dbc.Col(html.H4("Top 50 Songs by Year (Stacked by Genre)", className="text-center", style={"color": "#1DB954"}), width=12),
+                dbc.Col(
+                    dcc.RangeSlider(
+                        id="year-range-slider",
+                        min=int(df_tracks['release_year'].min()),  # Minimum year
+                        max=int(df_tracks['release_year'].max()),  # Maximum year
+                        step=1,  # Step is 1 year
+                        value=[
+                            int(df_tracks['release_year'].min()),
+                            int(df_tracks['release_year'].max())
+                        ],
+                        marks={year: str(year) for year in range(
+                            int(df_tracks['release_year'].min()),
+                            int(df_tracks['release_year'].max()) + 1, 5  # Every 5 years for labels
+                        )},
+                        className="custom-slider",
+                        tooltip={"placement": "bottom", "always_visible": True}
+                    ),
+                width=12
                 ),
-                width=6),
+                dbc.Col(
+                    dcc.Graph(
+                        id="stacked-chart",
+                        config={"displayModeBar": False}
+                    ),
+                    width=12
+                )
             ],
             className="mb-4"
         ),
@@ -298,14 +344,12 @@ layout = dbc.Container(
     fluid=True
 )
 
-# Callback to update the bar chart based on genre and number of bars
 @dash.callback(
     Output("subgenre-bar-chart", "figure"),
     [Input("genre-selection", "value"),
      Input("bar-count-input", "value")]
 )
 def update_subgenre_chart(selected_genre, bar_count):
-    # Filter the data based on the selected genre
     if selected_genre == "All":
         filtered_df = df_tracks
     else:
@@ -318,11 +362,25 @@ def update_subgenre_chart(selected_genre, bar_count):
     # Limit the number of bars to display
     subgenre_counts = subgenre_counts.head(bar_count)
 
+    # Define gradient colors
+    color_start = plotly.colors.hex_to_rgb('#d3f9d8')  # Spotify green
+    color_end = plotly.colors.hex_to_rgb('#1DB954')  # Light green
+    min_value = subgenre_counts['Number of Songs'].min()
+    max_value = subgenre_counts['Number of Songs'].max()
+    colors = [
+        plotly.colors.find_intermediate_color(
+            color_start, color_end, (value - min_value) / (max_value - min_value)
+        ) for value in subgenre_counts['Number of Songs']
+    ]
+    colors_hex = [f"rgb({r},{g},{b})" for r, g, b in colors]
+
     # Create the bar chart
     fig = go.Figure(go.Bar(
         x=subgenre_counts['Subgenre'],
         y=subgenre_counts['Number of Songs'],
-        marker_color="#1DB954"  # Spotify green color
+        marker=dict(color=colors_hex),  # Gradient color
+        text=subgenre_counts['Number of Songs'],  # Display values on the bars
+        textposition='auto'  # Position the text in the center of the bars
     ))
 
     # Update layout for the chart
@@ -355,6 +413,9 @@ def update_track_options(selected_genre):
     track_options = [{"label": str(track), "value": str(track)} for track in filtered_tracks['track_name'].dropna().unique()]
 
     return track_options, track_options
+
+
+# Callback to update radar chart based on selected tracks
 @dash.callback(
     Output("track-radar-chart", "figure"),
     [Input("track-selection-1", "value"),
@@ -414,6 +475,8 @@ def update_radar_chart(track_1, track_2):
 
     return fig
 
+
+
 # Callback to update the scatterplot based on selected feature
 @dash.callback(
     Output("popularity-scatterplot", "figure"),
@@ -430,19 +493,35 @@ def update_scatterplot(selected_feature):
         x_values = df_sample[selected_feature]
 
     # Create scatterplot
-    fig = go.Figure(go.Scatter(
+    fig = go.Figure()
+
+    # Add main scatterplot
+    fig.add_trace(go.Scatter(
         x=x_values,
         y=df_sample['track_popularity'],
         mode='markers',
         marker=dict(
             size=8,
-            color="#1DB954",
+            color=df_sample['color'],  # Use the color column for marker colors
             opacity=0.7,
         ),
         text=df_sample['track_name'],  # Hover text
-        hovertemplate="<b>Track Name:</b> %{text}<br><b>" + x_label + ":</b> %{x}<br><b>Popularity:</b> %{y}<extra></extra>"
+        hovertemplate="<b>Track Name:</b> %{text}<br><b>" + x_label + ":</b> %{x}<br><b>Popularity:</b> %{y}<extra></extra>",
+        showlegend=False  # Hide this trace from the legend
     ))
 
+    # Add dummy traces for legend
+    unique_colors = df_sample[['playlist_genre', 'color']].drop_duplicates()
+    for _, row in unique_colors.iterrows():
+        fig.add_trace(go.Scatter(
+            x=[None],  # No actual points
+            y=[None],  # No actual points
+            mode='markers',
+            marker=dict(size=10, color=row['color']),
+            name=row['playlist_genre']  # Genre name as the legend label
+        ))
+
+    # Update layout
     fig.update_layout(
         title=f"Popularity vs {x_label}",
         xaxis_title=x_label,
@@ -451,6 +530,68 @@ def update_scatterplot(selected_feature):
         paper_bgcolor="black",
         font=dict(color="white"),
         margin=dict(l=40, r=40, t=50, b=40)
+    )
+
+    return fig
+
+
+@dash.callback(
+    Output("stacked-chart", "figure"),
+    [Input("genre-selection", "value"),
+     Input("year-range-slider", "value")]
+)
+def update_stacked_chart(selected_genre, selected_years):
+    # Filter data by genre (optional)
+    filtered_df = df_tracks.copy()
+    if selected_genre != "All":
+        filtered_df = filtered_df[filtered_df['playlist_genre'] == selected_genre]
+
+    # Use release_year for year range filtering
+    start_year, end_year = selected_years
+    filtered_df = filtered_df[(filtered_df['release_year'] >= start_year) & (filtered_df['release_year'] <= end_year)]
+
+    # Ensure valid years and filter top 50 songs by year
+    top_songs_per_year = (
+        filtered_df.groupby('release_year', group_keys=False)
+        .apply(lambda x: x.nlargest(50, 'track_popularity'))
+    )
+
+    # Count the number of songs by genre for each year
+    genre_distribution = (
+        top_songs_per_year.groupby(['release_year', 'playlist_genre'])
+        .size()
+        .reset_index(name='count')
+    )
+
+    # Pivot to create data for stacking
+    stacked_data = genre_distribution.pivot(index='release_year', columns='playlist_genre', values='count').fillna(0)
+
+    # Create the stacked bar chart
+    fig = go.Figure()
+    for genre in stacked_data.columns:
+        fig.add_trace(go.Bar(
+            x=stacked_data.index,
+            y=stacked_data[genre],
+            name=genre,
+            hovertemplate=f"<b>Genre:</b> {genre}<br><b>Count:</b> {{y}}<extra></extra>"
+        ))
+
+    # Update layout
+    fig.update_layout(
+        barmode='stack',
+        title="Top 50 Songs by Year (Stacked by Genre)",
+        xaxis_title="Year",
+        yaxis_title="Number of Songs",
+        plot_bgcolor="black",
+        paper_bgcolor="black",
+        font=dict(color="white"),
+        legend=dict(
+            title="Genres",
+            x=1.05,
+            y=1,
+            bordercolor="gray",
+            borderwidth=1
+        )
     )
 
     return fig

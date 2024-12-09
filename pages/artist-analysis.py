@@ -7,9 +7,6 @@ import plotly.graph_objects as go
 import plotly.express as px
 import plotly.colors
 
-'''
-To add a bar chart where i can show how many songs are in the dataset for each artist by genre
-'''
 
 
 
@@ -52,7 +49,9 @@ dropdown_genre_options = [{"label": genre, "value": genre} for genre in availabl
 fig_artist_popularity = go.Figure(go.Bar(
     x=top_artists['track_artist'],  # Artists on the x-axis
     y=top_artists['track_popularity'],  # Popularity on the y-axis
-    marker=dict(color=colors_artist_hex)  # Spotify green color
+    marker=dict(color=colors_artist_hex),  # Spotify green color
+    text=top_artists['track_popularity'].round(1),  # Display values on the bars
+    textposition='auto'  # Position the text in the center of the bars
 ))
 
 fig_artist_popularity.update_layout(
@@ -81,10 +80,14 @@ fig_artist_popularity.update_layout(
     font=dict(color="white")  # Set the overall font color to white
 )
 
+
+# Bar chart for popularity by genre
 fig_genre_popularity = go.Figure(go.Bar(
     x=top_genres['playlist_genre'],  # Genres on the x-axis
     y=top_genres['track_popularity'],  # Popularity on the y-axis
-    marker=dict(color=colors_artist_hex)  # Spotify green color
+    marker=dict(color=colors_artist_hex),  # Spotify green color
+    text=top_genres['track_popularity'].round(1),  # Display values on the bars
+    textposition='auto'  # Position the text in the center of the bars
 ))
 
 fig_genre_popularity.update_layout(
@@ -263,7 +266,7 @@ layout = dbc.Container(
                 dbc.Col(html.Div([
                     html.Label("Number of Top Artists:", style={"color": "#1DB954"}),
                     dcc.Input(
-                        id="min-artist-input",
+                        id="min-artists-input",
                         type="number",
                         min=1,  # Minimum value
                         value=5,  # Default top 5 artists
@@ -278,11 +281,11 @@ layout = dbc.Container(
 
         dbc.Row(
             [
-                dbc.Col(html.H4("Artist-Genre Popularity Treemap", className="text-center", style={"color": "#1DB954"}),
+                dbc.Col(html.H4("Artist-Genre Popularity Bar Chart", className="text-center", style={"color": "#1DB954"}),
                         width=12),
                 dbc.Col(
                     dcc.Graph(
-                        id="artist-genre-treemap",
+                        id="artist-genre-barchart",
                         config={
                                 "displayModeBar": False  # Disables the toolbar
                                   }
@@ -394,69 +397,82 @@ def update_comparison_chart(artist_1, artist_2):
     return fig
 
 @dash.callback(
-    Output("artist-genre-treemap", "figure"),
+    Output("artist-genre-barchart", "figure"),
     [Input("genre-dropdown", "value"),
-     Input("min-artist-input", "value")]
+     Input("min-artists-input", "value")]
 )
-def update_artist_genre_treemap(selected_genre, num_top_artists):
+def update_artist_genre_percentage_barchart(selected_genre, top_artists_count):
     # Filter data by selected genre
-    filtered_df = df_tracks[df_tracks['playlist_genre'] == selected_genre]
+    filtered_df = df_tracks if selected_genre == "All" else df_tracks[df_tracks['playlist_genre'] == selected_genre]
 
-    # Group data by artist, calculate the total popularity for each artist
+    # Group by artist and genre, calculate total popularity
     artist_genre_popularity = (
-        filtered_df.groupby(['track_artist'], as_index=False)
+        filtered_df.groupby(['track_artist', 'playlist_genre'], as_index=False)
         .agg({'track_popularity': 'sum'})  # Aggregate popularity by sum
-        .rename(columns={'track_popularity': 'total_popularity'})  # Rename for clarity
+        .rename(columns={'track_popularity': 'total_popularity'})
     )
 
-    # Filter out rows where total_popularity is zero or missing
-    artist_genre_popularity = artist_genre_popularity[artist_genre_popularity['total_popularity'] > 0]
+    # Calculate the total popularity for each genre
+    genre_total_popularity = artist_genre_popularity.groupby('playlist_genre')['total_popularity'].transform('sum')
 
-    # Sort by popularity and separate top artists from the rest
-    artist_genre_popularity = artist_genre_popularity.sort_values(by="total_popularity", ascending=False)
-    top_artists = artist_genre_popularity.head(num_top_artists)
-    others = artist_genre_popularity.iloc[num_top_artists:]  # Remaining artists
+    # Add a percentage column
+    artist_genre_popularity['popularity_percentage'] = (artist_genre_popularity['total_popularity'] / genre_total_popularity) * 100
 
-    # Calculate total popularity for percentage calculation
-    total_popularity = artist_genre_popularity['total_popularity'].sum()
-
-    # Add a row for "Others" with the total popularity of all remaining artists
-    if not others.empty:
-        others_total = others['total_popularity'].sum()
-        others_row = pd.DataFrame([{
-            'track_artist': 'Others',
-            'total_popularity': others_total,
-            'percentage': (others_total / total_popularity) * 100  # Calculate percentage for "Others"
-        }])
-        top_artists = pd.concat([top_artists, others_row], ignore_index=True)
-
-    # Calculate percentage contribution for top artists
-    top_artists['percentage'] = (top_artists['total_popularity'] / total_popularity) * 100
-
-    # Create the treemap
-    fig_treemap = px.treemap(
-        top_artists,
-        path=['track_artist'],  # Hierarchy: Artist
-        values='total_popularity',  # Size of blocks by total popularity
-        color='total_popularity',  # Color by popularity
-        color_continuous_scale='greens',  # Spotify-like green color
-        title=f"Popularity Contribution by Top {num_top_artists} Artists in {selected_genre} Genre",
-        hover_data={'percentage': ':.2f'}  # Display percentage with 2 decimal places
+    # Filter the top artists by percentage contribution within the genre
+    top_artists = (
+        artist_genre_popularity.sort_values(by='popularity_percentage', ascending=False)
+        .head(top_artists_count)
     )
+
+    # Create gradient colors for the bars
+    color_start = plotly.colors.hex_to_rgb('#d3f9d8')  # Light green
+    color_end = plotly.colors.hex_to_rgb('#1DB954')  # Spotify green
+    min_percentage = top_artists['popularity_percentage'].min()
+    max_percentage = top_artists['popularity_percentage'].max()
+    colors = [
+        plotly.colors.find_intermediate_color(
+            color_start, color_end, (value - min_percentage) / (max_percentage - min_percentage)
+        ) for value in top_artists['popularity_percentage']
+    ]
+    colors_hex = [f"rgb({r},{g},{b})" for r, g, b in colors]
+
+    # Create the bar chart
+    fig_barchart = go.Figure(go.Bar(
+        x=top_artists['track_artist'],  # Artists on the x-axis
+        y=top_artists['popularity_percentage'],  # Percentage on the y-axis
+        text=top_artists['popularity_percentage'].round(2),  # Hover text with percentage
+        marker=dict(color=colors_hex),  # Gradient color
+        hovertemplate="<b>Artist:</b> %{x}<br><b>Genre:</b> %{text}<br><b>Popularity Contribution:</b> %{y:.2f}%<extra></extra>"
+    ))
 
     # Customize the layout
-    fig_treemap.update_traces(
-        hovertemplate="<b>%{label}</b><br>Total Popularity: %{value}<br>Percentage: %{customdata[0]:.2f}%"
+    fig_barchart.update_layout(
+        title=dict(
+            text=f"Top {top_artists_count} Artists' Popularity Contribution in {selected_genre}",
+            font=dict(size=20, color="white"),
+            x=0.5,  # Center title
+        ),
+        xaxis=dict(
+            title="Artist",
+            tickmode="linear",
+            tickangle=-45,  # Rotate artist names for readability
+            showgrid=False,
+            title_font=dict(size=14, color="white"),
+            tickfont=dict(size=12, color="white")
+        ),
+        yaxis=dict(
+            title="Popularity Contribution (%)",
+            showgrid=True,
+            gridcolor="gray",
+            title_font=dict(size=14, color="white"),
+            tickfont=dict(size=12, color="white")
+        ),
+        plot_bgcolor="black",
+        paper_bgcolor="black",
+        font=dict(color="white")
     )
 
-    fig_treemap.update_layout(
-        paper_bgcolor="black",  # Background color
-        plot_bgcolor="black",  # Plot background
-        font=dict(color="white"),  # Font color
-        title=dict(font=dict(size=20, color="white"), x=0.5)  # Title styling
-    )
-
-    return fig_treemap
+    return fig_barchart
 
 
 #Register the page
