@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "spotify-dashboard"
+version = "0.1.0"
+description = "A Spotify data visualization dashboard built with Dash and Plotly."
+authors = ["Niccolo901 <niccolo.cibei@studenti.unimi.it>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+dash = "2.18.2"
+dash-bootstrap-components = "1.6.0"
+pandas = "2.2.3"
+plotly = "5.24.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

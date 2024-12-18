@@ -3,10 +3,13 @@ from dash import dcc, html, Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
-import plotly
+import plotly.express as px
 
 # Load dataset
 df_tracks = pd.read_csv(r'C:\Users\cibei\OneDrive\Desktop\Data Visualization Methods\pythonProject\data\spotify_songs.csv')
+
+# Sample dataset
+df_sample = df_tracks.sample(n=1000, random_state=42)
 
 # Ensure the release date is in datetime format
 df_tracks['track_album_release_date'] = pd.to_datetime(df_tracks['track_album_release_date'], errors='coerce')
@@ -36,6 +39,16 @@ trend_features = [
     {"label": "Loudness", "value": "loudness"},
     {"label": "Instrumentalness", "value": "instrumentalness"}
 ]
+
+# Define a color map for genres
+genre_color_map = {
+    'pop': '#1DB954',
+    'r&b': '#70D6FF',
+    'rap': '#FF9770',
+    'latin': '#FF70A6',
+    'edm': '#FFD670',
+    'rock': '#FF0000'
+}
 
 # Define layout for Feature Analysis page
 layout = dbc.Container(
@@ -122,7 +135,7 @@ dbc.Row(
                     value="danceability",  # Default feature
                     className="custom-dropdown"
                 )
-            ]), width=6),
+            ]), width=4),
             dbc.Col(html.Div([
                 html.Label("Select Y-axis Feature:", style={"color": "#1DB954"}),
                 dcc.Dropdown(
@@ -131,7 +144,18 @@ dbc.Row(
                     value="energy",  # Default feature
                     className="custom-dropdown"
                 )
-            ]), width=6)
+            ]), width=4),
+            dbc.Col(html.Div([
+                html.Label("Select Genre(s):", style={"color": "#1DB954"}),
+                dcc.Dropdown(
+                    id="scatter-genre-dropdown",
+                    options=[{"label": genre, "value": genre} for genre in genre_color_map.keys()],
+                    value="All",  # Default value is "All"
+                    multi=True,  # Allow multiple genre selection
+                    placeholder="Select genres to display...",
+                    className="custom-dropdown"
+                )
+            ]), width=4)
         ],
         className="mb-4",
         style={"backgroundColor": "black"}
@@ -313,46 +337,43 @@ def update_comparison_charts(category, selected_items):
     return radar_chart, bar_chart
 
 
-# Define a color map for genres
-genre_color_map = {
-    'pop': '#1DB954',
-    'r&b': '#70D6FF',
-    'rap': '#FF9770',
-    'latin': '#FF70A6',
-    'edm': '#FFD670',
-    'rock': '#FF0000'
-}
-
-
 
 # Callback to update the scatterplot based on selected features
 @dash.callback(
     Output("feature-scatterplot", "figure"),
     [Input("scatter-x-feature-dropdown", "value"),
-     Input("scatter-y-feature-dropdown", "value")]
+     Input("scatter-y-feature-dropdown", "value"),
+     Input("scatter-genre-dropdown", "value")]  # Input for selected genres
 )
-def update_feature_scatterplot(x_feature, y_feature):
-    # Sample 1000 songs from the dataset
-    df_sample = df_tracks.sample(n=1000, random_state=42)
+def update_feature_scatterplot(x_feature, y_feature, selected_genres):
 
     # Map genres to colors
     df_sample['color'] = df_sample['playlist_genre'].map(genre_color_map)
 
+    # Determine highlighted points based on selected genres
+    if not selected_genres or "All" in selected_genres:
+        highlighted = [True] * len(df_sample)  # All points are highlighted
+    else:
+        highlighted = df_sample['playlist_genre'].isin(selected_genres)
+
     # Create scatterplot
     fig = go.Figure()
 
-    # Add scatter plot trace
+    # Add scatter plot trace with conditional marker size and opacity
     fig.add_trace(go.Scatter(
         x=df_sample[x_feature],
         y=df_sample[y_feature],
         mode='markers',
         marker=dict(
-            size=8,
-            color=df_sample['color'],  # Use the mapped color column for marker colors
-            opacity=0.7
+            size=[8 if h else 6 for h in highlighted],  # Larger size for highlighted points, smaller for others
+            color=df_sample['color'],  # Use the color column for marker colors
+            opacity=[1 if h else 0.3 for h in highlighted],  # Full opacity for highlighted, lower opacity for others
+            line=dict(width=0)  # Remove white border around the markers
         ),
         text=df_sample['track_name'],  # Hover text
-        hovertemplate="<b>Track Name:</b> %{text}<br><b>" + x_feature.capitalize() + ":</b> %{x}<br><b>" + y_feature.capitalize() + ":</b> %{y}<extra></extra>",
+        hovertemplate="<b>Track Name:</b> %{text}<br><b>" +
+                      x_feature.capitalize() + ":</b> %{x}<br><b>" +
+                      y_feature.capitalize() + ":</b> %{y}<extra></extra>",
         showlegend=False
     ))
 
@@ -361,12 +382,11 @@ def update_feature_scatterplot(x_feature, y_feature):
         fig.add_trace(go.Scatter(
             x=[None], y=[None],
             mode='markers',
-            marker=dict(size=8, color=color),
-            legendgroup=genre,
-            showlegend=True,
+            marker=dict(size=6, color=color, line=dict(width=0)),  # Legend markers
             name=genre
         ))
 
+    # Update layout
     fig.update_layout(
         title=f"{x_feature.capitalize()} vs {y_feature.capitalize()}",
         xaxis_title=x_feature.capitalize(),
@@ -378,6 +398,7 @@ def update_feature_scatterplot(x_feature, y_feature):
     )
 
     return fig
+
 
 @dash.callback(
     Output("parallel-coordinates-chart", "figure"),
@@ -391,8 +412,8 @@ def update_parallel_coordinates(selected_genre):
         filtered_df = df_tracks[df_tracks['playlist_genre'] == selected_genre]
 
     # Select relevant attributes for the chart
-    attributes = ['danceability', 'energy', 'valence', 'liveness', 'speechiness', 'instrumentalness', 'track_popularity']
-    filtered_df = filtered_df[attributes]
+    attributes = ['danceability', 'energy', 'valence', 'liveness', 'speechiness', 'instrumentalness']
+    filtered_df = filtered_df[['playlist_genre'] + attributes]
 
     # Remove rows with NaN or invalid values
     filtered_df = filtered_df.dropna()
@@ -412,9 +433,22 @@ def update_parallel_coordinates(selected_genre):
         min_val = filtered_df[attr].min()
         max_val = filtered_df[attr].max()
         if min_val == max_val:
-            normalized_df[attr] = 1  # Handle cases where all values are identical
+            normalized_df[attr] = 1
         else:
             normalized_df[attr] = (filtered_df[attr] - min_val) / (max_val - min_val)
+
+    # Map genres to numerical values and colors
+    genre_list = filtered_df['playlist_genre'].unique()
+    genre_to_numeric = {genre: i for i, genre in enumerate(genre_list)}  # Map genres to numbers
+    filtered_df['genre_numeric'] = filtered_df['playlist_genre'].map(genre_to_numeric)
+
+    # Handle colorscale for single-genre scenarios
+    if len(genre_list) == 1:
+        colorscale = [[0, genre_color_map.get(genre_list[0], "#FFFFFF")],
+                      [1, genre_color_map.get(genre_list[0], "#FFFFFF")]]
+    else:
+        colorscale = [[i / (len(genre_list) - 1), genre_color_map.get(genre, "#FFFFFF")]
+                      for i, genre in enumerate(genre_list)]
 
     # Create the parallel coordinates chart
     dimensions = [
@@ -423,13 +457,14 @@ def update_parallel_coordinates(selected_genre):
 
     fig = go.Figure(data=go.Parcoords(
         line=dict(
-            color=filtered_df['track_popularity'],
-            colorscale='Viridis',
-            showscale=True  # Show color scale
+            color=filtered_df['genre_numeric'],  # Use numerical genre representation
+            colorscale=colorscale,  # Use consistent colors from genre_color_map
+            showscale=False,  # Hide color scale
         ),
         dimensions=dimensions
     ))
 
+    # Update layout
     fig.update_layout(
         title="Parallel Coordinates Chart",
         font=dict(color="white"),
@@ -438,7 +473,6 @@ def update_parallel_coordinates(selected_genre):
     )
 
     return fig
-
 
 
 

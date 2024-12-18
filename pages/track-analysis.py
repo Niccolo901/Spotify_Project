@@ -293,6 +293,16 @@ layout = dbc.Container(
                         className="custom-dropdown",
                     )
                 ]), width=6),
+                dbc.Col(html.Div([
+                    html.Label("Select Highlighted Genres:", style={"color": "#1DB954"}),
+                    dcc.Dropdown(
+                        id="highlight-genres-dropdown",
+                        options=[{"label": genre, "value": genre} for genre in available_genres],
+                        multi=True,  # Allow multiple selections
+                        placeholder="Select genres to highlight...",
+                        className="custom-dropdown"
+                    )
+                ]), width=6),
             ],
             className="mb-4",
         ),
@@ -480,9 +490,10 @@ def update_radar_chart(track_1, track_2):
 # Callback to update the scatterplot based on selected feature
 @dash.callback(
     Output("popularity-scatterplot", "figure"),
-    Input("scatter-feature-dropdown", "value")
+    [Input("scatter-feature-dropdown", "value"),
+     Input("highlight-genres-dropdown", "value")]  # Input for selected genres
 )
-def update_scatterplot(selected_feature):
+def update_scatterplot(selected_feature, selected_genres):
     # X-axis label
     x_label = "Duration (Seconds)" if selected_feature == "duration_ms" else selected_feature.capitalize()
 
@@ -492,18 +503,22 @@ def update_scatterplot(selected_feature):
     else:
         x_values = df_sample[selected_feature]
 
+    # Determine which points to highlight
+    highlighted = df_sample['playlist_genre'].isin(selected_genres) if selected_genres else [True] * len(df_sample)
+
     # Create scatterplot
     fig = go.Figure()
 
-    # Add main scatterplot
+    # Add main scatterplot with conditional styling
     fig.add_trace(go.Scatter(
         x=x_values,
         y=df_sample['track_popularity'],
         mode='markers',
         marker=dict(
-            size=8,
+            size=[8 if h else 6 for h in highlighted],  # Larger size for highlighted points
             color=df_sample['color'],  # Use the color column for marker colors
-            opacity=0.7,
+            opacity=[1 if h else 0.5 for h in highlighted],  # Full opacity for highlighted points
+            line=dict(width=0)
         ),
         text=df_sample['track_name'],  # Hover text
         hovertemplate="<b>Track Name:</b> %{text}<br><b>" + x_label + ":</b> %{x}<br><b>Popularity:</b> %{y}<extra></extra>",
@@ -535,6 +550,7 @@ def update_scatterplot(selected_feature):
     return fig
 
 
+ # Callback to update the stacked bar chart based on selected genre and year range
 @dash.callback(
     Output("stacked-chart", "figure"),
     [Input("genre-selection", "value"),
